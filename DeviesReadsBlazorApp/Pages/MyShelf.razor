@@ -1,0 +1,96 @@
+﻿@page "/myshelf"
+@using DeviesReadsBlazorApp.Data
+@using DeviesReadsBlazorApp.ViewModels
+@inject IDeviesReadUser _userService
+@inject ProtectedLocalStorage _localStorage
+@inject NavigationManager _navigationManager
+
+<PageTitle>My Shelf</PageTitle>
+
+<h3>My Shelf</h3>
+
+<AuthorizeView>
+    <Authorized>
+        @if (books == null)
+        {
+            <p><em>Loading...</em></p>
+        }
+        else
+        {
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th class="align-middle">#</th>
+                        <th class="align-middle">
+                            <button type="button" class="btn btn-link" @onclick=@(async () => BookSorting("BookTitle"))>
+                                Title
+                            </button>
+                        </th>
+                        <th class="align-middle">
+                            <button type="button" class="btn btn-link" @onclick=@(async () => BookSorting("BookStatus"))>
+                                Status
+                            </button>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @{
+                        if (books != null && books.Count > 0)
+                        {
+                            int i = 1;
+                            foreach (var item in books)
+                            {
+                                <tr>
+                                    <td class="align-middle">@i</td>
+                                    <td>
+                                        <a href="@($"/details/{item.BookId}")">@item.BookTitle</a>
+                                    </td>
+                                    <td class="align-middle">@item.BookStatus</td>
+                                </tr>
+                                i++;
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="2">No Books</td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        }
+    </Authorized>
+    <NotAuthorized>
+        <h3>You need to login or register.</h3>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private List<UserBookViewModel> books = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var userLocalStorage = await _localStorage.GetAsync<UserLocalStorage>("UserLocalStorage");
+        if (userLocalStorage.Success)
+        {
+            books = await _userService.GetUsersBooks(userLocalStorage.Value.UserId);
+        }
+    }
+
+    protected void BookSorting(string bookSorting)
+    {
+        if (books.Count > 0)
+        {
+            switch (bookSorting)
+            {
+                case "BookTitle":
+                    books = books.OrderBy(x => x.BookTitle).ToList();
+                    break;
+                case "BookStatus":
+                    books = books.OrderBy(x => x.BookStatus).ToList();
+                    break;
+            }
+        }
+    }
+}

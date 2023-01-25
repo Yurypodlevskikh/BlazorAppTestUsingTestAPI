@@ -1,0 +1,27 @@
+﻿@using DeviesReadsBlazorApp.Data
+@inject ProtectedLocalStorage _localStorage
+
+<AuthorizeView>
+    <Authorized>
+        @if (!string.IsNullOrEmpty(@context.User.Identity.Name))
+        {
+            <a href="/myshelf">@context.User.Identity.Name</a>
+        }
+        else
+        {
+            <a href="/login">Login</a>
+        }
+    </Authorized>
+    <NotAuthorized>
+        <a href="/login">Login</a>&nbsp;/&nbsp;<a href="/register" class="ms-0">Register</a>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+        }
+    }
+}

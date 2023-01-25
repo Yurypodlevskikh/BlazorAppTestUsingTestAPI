@@ -1,0 +1,180 @@
+﻿@page "/details/{Id}"
+@using DeviesReadsBlazorApp.Models
+@using DeviesReadsBlazorApp.Data
+@inject IBookDataService _bookDataService
+@inject IDeviesReadUser _userService
+@inject ProtectedLocalStorage _localStorage
+
+<h3>Details</h3>
+
+@if(book == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <dl class="row">
+        <dt class="col-sm-3">Rating</dt>
+        <dd class="col-sm-9">
+            <div class="progress">
+                <div class="progress-bar" role="progressbar" aria-label="Basic example" style="width: @raiting%" aria-valuenow="@raiting" aria-valuemin="0" aria-valuemax="100"></div>
+            </div>
+        </dd>
+    </dl>
+    <div class="row">
+        <div class="col-sm-3">
+            <img alt="Book Cover" src="@book.CoverUrl" />
+        </div>
+        <div class="col-sm-9">
+            <h4>@book.Name</h4>
+            <p>Genre: @book.Genre</p>
+            
+            <div class="row">
+                <div class="col-sm-7">
+                    <AuthorizeView>
+                        <Authorized>
+                            <!-- Radio buttons -->
+                            <div class="mb-3">
+                                @foreach (Enum item in Enum.GetValues(typeof(ShelfStatus)))
+                                {
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="radio" name="bookShelf" id="@item"
+                                       value="@item" @onchange="AddBookToShelf" bind="@bookStatus" checked="@(item.ToString() == bookStatus)">
+                                        <label class="form-check-label" for="@item">@item.GetEnumDisplayName()</label>
+                                    </div>
+                                }
+                                <span class="text-danger">@radioMessage</span>
+                            </div>
+                            <!-- Select rating -->
+                            <div class="input-group">
+                                <select class="form-select col-sm-6" @bind="@selectedRate">
+                                    <option value="">Rate it</option>
+                                    @foreach (var rate in rates)
+                                    {
+                                        <option value="@rate">@rate</option>
+                                    }
+                                </select>
+                                <button class="btn btn-outline-secondary" type="button" @onclick="@OnSelect">Send</button>
+                                <span class="text-danger">@statusMessage</span>
+                            </div>
+                        </Authorized>
+                    </AuthorizeView>
+                </div>
+            </div>
+        </div>
+    </div>
+    <dl class="row">
+        <dt class="col-sm-3">Description</dt>
+        <dd class="col-sm-9">@book.Description</dd>
+    </dl>
+}
+
+@code {
+    [Parameter]
+    public string Id{ get; set; }
+
+    public string? statusMessage;
+    public string? radioMessage;
+
+    protected Dictionary<string, object> ratingAttribute;
+
+    private BookOnTheShelf bookShelf = new BookOnTheShelf();
+    private ShelfStatus shelfStatus = new ShelfStatus();
+    private string bookStatus;
+
+    private IEnumerable<int> rates = Enumerable.Range(1, 5);
+    private int raiting = 0;
+    private int? selectedRate;
+    private RateBook rateBook = new RateBook();
+
+    private BookDTO book;
+    private bool ifBookOnShelf;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if(!string.IsNullOrEmpty(Id))
+        {
+            book = await _bookDataService.GetBookByIdAsync(Id);
+
+            if(book.AverageRating >= 5)
+            {
+                raiting = 100;
+            }
+            else if(book.AverageRating < 5)
+            {
+                raiting = (int)((book.AverageRating / 5) * 100);
+            }
+
+            rateBook.BookId = Id;
+            var userLocalStorage = await _localStorage.GetAsync<UserLocalStorage>("UserLocalStorage");
+            if(userLocalStorage.Success)
+            {
+                string aToken = userLocalStorage.Value.AccessToken;
+                string userId = userLocalStorage.Value.UserId;
+                bookShelf.AccessToken = aToken;
+                bookShelf.UserId = userId;
+                rateBook.AccessToken = aToken;
+
+                IfBookOnShelf bookOnShelf = new()
+                {
+                    UserId = userId,
+                    BookId = Id
+                };
+                string? bStatus = await _userService.UserHasThisBook(bookOnShelf);
+                if (bStatus != null)
+                {
+                    ifBookOnShelf = true;
+                    bookStatus = bStatus;
+                }
+            }
+        }
+    }
+
+    protected async Task OnSelect()
+    {
+        if(selectedRate > 0)
+        {
+            rateBook.Rating = (int)selectedRate;
+            var averageRaiting = await _bookDataService.RateTheBook(rateBook);
+            if (averageRaiting != null)
+            {
+                raiting = (int)((averageRaiting / 5) * 100);
+                statusMessage = String.Empty;
+            }
+            else
+            {
+                statusMessage = "The raiting wasn't saved";
+            }
+        }
+        else
+        {
+            statusMessage = "The submitted rating must be greater than zero.";
+        }
+    }
+
+    protected async Task AddBookToShelf(ChangeEventArgs e)
+    {
+        radioMessage = string.Empty;
+
+        if(e.Value != null)
+        {
+            bookShelf.Status = e.Value.ToString();
+            bookShelf.BookId = Id;
+
+            if (ifBookOnShelf)
+            {
+                if (!await _userService.UpdateBookOnTheShelf(bookShelf))
+                {
+                    radioMessage = "The book status wasn't updated.";
+                }
+            }
+            else
+            {
+                if (!await _userService.AddTheBookOnTheShelf(bookShelf))
+                {
+                    radioMessage = "The book status wasn't saved.";
+                }
+            }
+        }
+    }
+}

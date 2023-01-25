@@ -1,0 +1,131 @@
+﻿@page "/"
+@using DeviesReadsBlazorApp.Data
+@inject IBookDataService _bookDataService
+@using DeviesReadsBlazorApp.ViewModels
+@inject NavigationManager _navigationManager
+
+
+<PageTitle>Books</PageTitle>
+
+<h1>All The Books</h1>
+
+<div class="row">
+    <div class="col-sm-6">
+        <div class="input-group">
+  <input type="text" class="form-control" @bind="searchName">
+  <button class="btn btn-outline-secondary" type="button" @onclick="@SearchBookName">Button</button>
+</div>
+    </div>
+    <div class="col-sm-6">
+        <select class="form-select" @onchange="@OnSelect">
+            @if (genres != null)
+            {
+                <option value="">All genres</option>
+                @foreach (var item in genres)
+                {
+                    if (item == null)
+                    {
+                        <option value="Undefined">Undefined</option>
+                    }
+                    else
+                    {
+                        <option value="@item">@item</option>
+                    }
+                }
+            }
+            else
+            {
+                <option value=null selected>No genre</option>
+            }
+        </select>
+    </div>
+</div>
+
+@if (books == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th class="align-middle">#</th>
+                <th class="align-middle">
+                    <button type="button" class="btn btn-link" @onclick=@(async () => await BookSorting("name"))>
+                        Name
+                    </button>
+                </th>
+                <th class="align-middle">
+                    <button type="button" class="btn btn-link" @onclick=@(async () => await BookSorting("haveRead"))>
+                        Have read
+                    </button>
+                </th>
+                <th class="align-middle">
+                    <button type="button" class="btn btn-link" @onclick=@(async () => await BookSorting("currentlyReading"))>
+                        Currently reading
+                    </button>
+                </th>
+                <th class="align-middle">
+                    <button type="button" class="btn btn-link" @onclick=@(async () => await BookSorting("wantToRead"))>
+                        Want to read
+                    </button>
+                </th>
+            </tr>
+        </thead>
+        <tbody>
+            @{
+                int i = 1;
+                foreach (var item in books)
+                {
+                    <tr>
+                        <td class="align-middle">@i</td>
+                        <td>
+                            <button class="btn btn-link" @onclick=@(()=> ShowDetails(item))>
+                                @item.Name
+                            </button>
+                        </td>
+                        <td class="align-middle">@item.HaveRead</td>
+                        <td class="align-middle">@item.CurrentlyReading</td>
+                        <td class="align-middle">@item.WantToRead</td>
+                    </tr>
+                    i++;
+                }
+            }
+        </tbody>
+    </table>
+}
+
+@code{
+    
+    private List<BookViewModel> books;
+    private List<string>? genres;
+    private string? genre = "";
+    private string? searchName = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        books = await _bookDataService.GetAllBooksAsync(null);
+        genres = books.GroupBy(x => x.Genre).Select(x => x.Key).ToList();
+    }
+    protected async Task SearchBookName(MouseEventArgs e)
+    {
+        books = await _bookDataService.GetBooksByGenreAsync(genre);
+        books = string.IsNullOrEmpty(searchName) ? books :
+            books.Where(x => x.Name.Contains(searchName)).ToList();
+        searchName = "";
+    }
+    protected async Task OnSelect(ChangeEventArgs e)
+    {
+        genre = e.Value?.ToString();
+        books = await _bookDataService.GetBooksByGenreAsync(genre);
+    }
+    protected async Task BookSorting(string bookSorting)
+    {
+        books = await _bookDataService.GetAllBooksAsync(bookSorting);
+    }
+    public void ShowDetails(BookViewModel book)
+    {
+        _navigationManager.NavigateTo($"/details/{book.Id}");
+    }
+}

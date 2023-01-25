@@ -1,0 +1,63 @@
+﻿@page "/login"
+@using DeviesReadsBlazorApp.Data
+@inject NavigationManager _navigationManager
+@inject AuthenticationStateProvider _authStateProvider
+
+<div class="row">
+    <div class="col-lg-4 offset-lg-4 pt-4 border">
+        <div class="mb-3 text-center">
+            <h3>Log in</h3>
+            <span class="text-danger">@statusMessage</span>
+        </div>
+        <div class="mb-3">
+            <label>User Name</label>
+            <input @bind="username" class="form-control" placeholder="Username" @onfocus="CleanMessage" />
+        </div>
+        <div class="mb-3">
+            <label>Password</label>
+            <input @bind="password" class="form-control" placeholder="Password" @onfocus="CleanMessage" />
+        </div>
+        <div class="mb-3 d-grid gap-2">
+            <button @onclick="LoginUser" class="btn btn-primary">Log in</button>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string? username;
+    private string? password;
+    public string? statusMessage;
+    public bool status = false;
+
+    protected async Task LoginUser()
+    {
+        if (!string.IsNullOrWhiteSpace(username) && !string.IsNullOrWhiteSpace(password))
+        {
+            var registerDTO = new RegisterDTO()
+                {
+                    Username = username,
+                    Password = password
+                };
+
+            if (await ((CustomAuthStateProvider)_authStateProvider).Login(registerDTO))
+            {
+                _navigationManager.NavigateTo("/");
+            }
+            else
+            {
+                statusMessage = "Invalid Username or Password.";
+                username = string.Empty;
+                password = string.Empty;
+            }
+        }
+        else
+        {
+            statusMessage = "Username and Password are required.";
+        }
+    }
+
+    protected void CleanMessage()
+    {
+        statusMessage = string.Empty;
+    }
+}

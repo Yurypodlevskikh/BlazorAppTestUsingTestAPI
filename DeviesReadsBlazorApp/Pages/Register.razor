@@ -1,0 +1,60 @@
+﻿@page "/register"
+@using DeviesReadsBlazorApp.Data
+@inject AuthenticationStateProvider _authStateProvider
+@inject NavigationManager _navigationManager
+
+<div class="row">
+    <div class="col-lg-4 offset-lg-4 pt-4 border">
+        <div class="mb-3 text-center">
+            <h3>Register</h3>
+            <span class="text-danger">@statusMessage</span>
+        </div>
+        <div class="mb-3">
+            <label>User Name</label>
+            <input @bind="username" class="form-control" placeholder="Username" @onfocus="CleanMessage" />
+        </div>
+        <div class="mb-3">
+            <label>Password</label>
+            <input @bind="password" class="form-control" placeholder="Password" @onfocus="CleanMessage" />
+        </div>
+        <div class="mb-3 d-grid gap-2">
+            <button @onclick="RegisterUser" class="btn btn-primary">Register</button>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string username;
+    private string password;
+    public string? statusMessage;
+
+    protected async Task RegisterUser()
+    {
+        if(!string.IsNullOrWhiteSpace(username) && !string.IsNullOrWhiteSpace(password))
+        {
+            var registerDTO = new RegisterDTO()
+                {
+                    Username = username,
+                    Password = password
+                };
+
+            if (await ((CustomAuthStateProvider)_authStateProvider).Register(registerDTO))
+            {
+                _navigationManager.NavigateTo("/login");
+            }
+            else
+            {
+                statusMessage = "Something was wrong";
+            }
+        }
+        else
+        {
+            statusMessage = "Username and Password are required.";
+        }
+    }
+
+    protected void CleanMessage()
+    {
+        statusMessage = string.Empty;
+    }
+}
